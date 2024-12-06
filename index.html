@@ -1,0 +1,1558 @@
+<html><head><base href="." /><title>Digital Logic Sandbox</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+    body {
+        margin: 0;
+        padding: 10px;
+        font-family: Arial, sans-serif;
+        background: #1e1e1e;
+        color: #fff;
+        touch-action: none; /* Prevent unwanted touch behaviors */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
+
+    #canvas {
+        background: #2d2d2d;
+        border: 2px solid #444;
+        cursor: move;
+    }
+
+    .toolbox {
+        width: 200px; /* Fixed width for toolbox */
+        display: block;
+        position: fixed;
+        left: 5px;
+        top: 5px;
+        background: #333;
+        padding: 5px;
+        border-radius: 5px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        max-height: 95vh;
+        overflow-y: auto;
+        touch-action: pan-y; /* Allow vertical scrolling but prevent other touch actions */
+    }
+
+    .category-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        margin-bottom: 5px;
+    }
+
+    .category-tab {
+        background: #444;
+        color: #fff;
+        border: none;
+        padding: 5px 10px;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+        flex: 1;
+        min-width: 80px;
+        transition: background 0.2s;
+        min-height: 44px; /* Minimum touch target size */
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .category-tab.active {
+        background: #0a0;
+    }
+
+    .category {
+        display: none;
+    }
+
+    .category.active {
+        display: block;
+    }
+
+    .category-header {
+        color: #fff;
+        font-size: 14px;
+        font-weight: bold;
+        padding: 5px;
+        margin-bottom: 5px;
+        background: #444;
+        border-radius: 3px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .category-content {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 2px;
+    }
+
+    .component-btn {
+        display: block;
+        margin: 3px;
+        padding: 6px;
+        background: #444;
+        border: none;
+        color: #fff;
+        cursor: pointer;
+        border-radius: 3px;
+        transition: background 0.2s;
+        font-size: 14px;
+        min-width: 80px;
+        min-height: 44px; /* Minimum touch target size */
+        touch-action: manipulation;
+    }
+
+    .component-btn:hover {
+        background: #555;
+    }
+
+    .context-menu {
+        position: fixed;
+        background: #333;
+        border-radius: 3px;
+        padding: 5px;
+        display: none;
+    }
+
+    .wire {
+        stroke: #0f0;
+        stroke-width: 2;
+    }
+
+    .node {
+        fill: #fff;
+    }
+
+    .mode-btn {
+        background: #666;
+        color: #fff;
+        padding: 6px;
+        margin: 3px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 14px;
+        min-width: 80px;
+        min-height: 44px; /* Minimum touch target size */
+        touch-action: manipulation;
+    }
+
+    .mode-btn.active {
+        background: #0a0;
+    }
+
+    .io-label {
+        fill: white;
+        font-size: 10px; /* Slightly smaller labels */
+        user-select: none;
+    }
+
+    /* Update the CSS for better touch targets on mobile */
+    @media (pointer: coarse) {
+        .component-btn, .mode-btn, .category-tab {
+            min-height: 44px; /* Reduced from 60px */
+            font-size: 14px; /* Reduced from 16px */
+            padding: 8px; /* Reduced from 12px */
+            margin: 4px; /* Reduced from 5px */
+        }
+
+        .toolbox {
+            width: 220px; /* Reduced from 250px */
+        }
+
+        /* Adjust node size for mobile */
+        .node {
+            r: 6; /* Reduced from 8 */
+        }
+
+        .category-header {
+            font-size: 12px; /* Slightly smaller headers */
+            padding: 4px; /* Reduced padding */
+        }
+    }
+
+    /* Desktop optimization */
+    @media (pointer: fine) {
+        .component-btn, .mode-btn, .category-tab {
+            min-height: 32px;
+            font-size: 12px;
+            padding: 6px;
+            margin: 2px;
+        }
+
+        .toolbox {
+            width: 200px;
+        }
+
+        /* Smaller, precise nodes for desktop */
+        .node {
+            r: 4;
+        }
+    }
+
+    /* Animation for pulsing nodes */
+    @keyframes nodePulse {
+        0% { r: 4; }
+        50% { r: 12; } /* Increased from 8 to 12 */
+        100% { r: 4; }
+    }
+
+    @keyframes nodePulseMobile {
+        0% { r: 6; }
+        50% { r: 18; } /* Increased from 12 to 18 */
+        100% { r: 6; }
+    }
+
+    /* Mobile toggle button styles */
+    .mobile-toggle {
+        position: fixed;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #444;
+        color: #fff;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        z-index: 1000;
+        font-size: 14px;
+        min-height: 44px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        transition: background 0.2s;
+    }
+
+    .mobile-toggle:hover {
+        background: #555;
+    }
+
+    .mobile-toggle.active {
+        background: #0a0;
+    }
+
+    /* Mobile mode specific styles */
+    body.mobile-mode .component-btn, 
+    body.mobile-mode .mode-btn, 
+    body.mobile-mode .category-tab {
+        min-height: 60px;
+        font-size: 16px;
+        padding: 12px;
+        margin: 5px;
+    }
+
+    body.mobile-mode .toolbox {
+        width: 250px;
+    }
+
+    body.mobile-mode .node {
+        r: 8;
+    }
+
+    body.mobile-mode .io-label {
+        font-size: 14px;
+    }
+
+    body.mobile-mode .category-header {
+        font-size: 16px;
+        padding: 8px;
+    }
+
+    .beta-notice {
+        position: fixed;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: #ff4444;
+        font-size: 14px;
+        text-align: center;
+        background: rgba(0,0,0,0.7);
+        padding: 10px;
+        border-radius: 5px;
+        z-index: 1000;
+    }
+</style>
+</head>
+<body>
+<div class="toolbox">
+    <div class="category-tabs"></div>
+    <div class="category">
+        <div class="category-header">Mode Selection</div>
+        <div class="category-content">
+            <button class="mode-btn" id="wireMode">Wire Mode (W)</button>
+            <button class="mode-btn" id="deleteMode">Delete Mode (D)</button>
+        </div>
+    </div>
+    
+    <div class="category">
+        <div class="category-header">Basic Gates</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="AND">AND Gate</button>
+            <button class="component-btn" data-type="OR">OR Gate</button>
+            <button class="component-btn" data-type="NOT">NOT Gate</button>
+            <button class="component-btn" data-type="XOR">XOR Gate</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header">Complex Gates</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="NAND">NAND Gate</button>
+            <button class="component-btn" data-type="NOR">NOR Gate</button>
+            <button class="component-btn" data-type="XNOR">XNOR Gate</button>
+            <button class="component-btn" data-type="MULTIPLEX">4:1 Multiplexer</button>
+            <button class="component-btn" data-type="DEMUX">1:4 Demultiplexer</button>
+            <button class="component-btn" data-type="FULL_ADDER">Full Adder</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header">Input/Output</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="INPUT">Input Switch</button>
+            <button class="component-btn" data-type="LED">LED</button>
+            <button class="component-btn" data-type="SCREEN">Display</button>
+            <button class="component-btn" data-type="CLOCK">Clock</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header">Memory & Sequential</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="DLATCH">D Latch</button>
+            <button class="component-btn" data-type="JKFF">JK Flip-Flop</button>
+            <button class="component-btn" data-type="COUNTER">Counter</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header">Data Processing</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="DECODER">2:4 Decoder</button>
+            <button class="component-btn" data-type="MUX">2:1 Multiplexer</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header">Advanced Components</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="SHIFT_REG">8-bit Shift Register</button>
+            <button class="component-btn" data-type="RAM">4-bit RAM</button>
+            <button class="component-btn" data-type="ALU">4-bit ALU</button>
+            <button class="component-btn" data-type="BCD">BCD Counter</button>
+        </div>
+    </div>
+
+    <div class="category">
+        <div class="category-header">Testing Tools</div>
+        <div class="category-content">
+            <button class="component-btn" data-type="PROBE">Logic Probe</button>
+            <button class="component-btn" data-type="PULSE">Pulse Generator</button>
+            <button class="component-btn" data-type="ANALYZER">Logic Analyzer</button>
+        </div>
+    </div>
+</div>
+<button class="mobile-toggle">Mobile Mode</button>
+<canvas id="canvas"></canvas>
+
+<div class="beta-notice">
+    This is in Open Beta, which means nothing will be perfect, report bugs to reidek on discord!
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.18.0/matter.min.js"></script>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Set canvas size
+function resizeCanvas() {
+    canvas.width = window.innerWidth - 20;
+    canvas.height = window.innerHeight - 20;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Vibration function
+function vibrateBasedOnDistance(distance, maxDistance) {
+    if (!navigator.vibrate) return; // Check if vibration is supported
+    
+    // Calculate vibration frequency based on distance
+    const normalizedDistance = Math.max(0, Math.min(1, distance / maxDistance));
+    const vibrationInterval = Math.floor(normalizedDistance * 200 + 50); // 50-250ms interval
+    
+    if (distance < maxDistance) {
+        navigator.vibrate(20); // Short vibration
+        setTimeout(() => {
+            if (wireMode && !wireStartNode) { // Only continue if still in wire mode
+                vibrateBasedOnDistance(distance, maxDistance);
+            }
+        }, vibrationInterval);
+    }
+}
+
+// Check node proximity function
+function checkNodeProximity(x, y, node) {
+    const detectionRadius = getNodeDetectionRadius();
+    const dx = x - node.x;
+    const dy = y - node.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    return distance < detectionRadius;
+}
+
+// Component class definitions
+class Component {
+    constructor(type, x, y) {
+        this.type = type;
+        this.x = x;
+        this.y = y;
+        this.inputs = [];
+        this.outputs = [];
+        this.width = 60;
+        this.height = 40;
+        this.value = false;
+        this.count = 0; // Initialize count for counters
+        this.inputNodes = [];
+        this.outputNodes = [];
+        this.displayValue = 0; // Initialize display value for SCREEN
+        this.updateNodes();
+        
+        // Special handling for 7-segment display
+        if (this.type === 'SCREEN') {
+            this.width = 60;  // Make it more flexible
+            this.height = 40; // Match other component sizes
+            this.inputNodes = [
+                { x: this.x, y: this.y + 10, label: 'D0' },
+                { x: this.x, y: this.y + 25, label: 'D1' },
+                { x: this.x, y: this.y + 40, label: 'D2' },
+                { x: this.x, y: this.y + 55, label: 'D3' },
+                { x: this.x + this.width, y: this.y + this.height - 10, label: 'RST' } // Update reset input node
+            ];
+            this.outputNodes = [];
+        } else if (this.type === 'COUNTER') {
+            this.inputNodes = [
+                { x: this.x, y: this.y + 20, label: 'CLK' },
+                { x: this.x, y: this.y + 40, label: 'RST' }
+            ];
+            this.outputNodes = [
+                { x: this.x + this.width, y: this.y + 20, label: 'OUT' }
+            ];
+        }
+    }
+
+    updateNodes() {
+        this.inputNodes = [];
+        this.outputNodes = [];
+        
+        if (this.type === 'SCREEN') {
+            this.inputNodes = [
+                { x: this.x, y: this.y + 10, label: 'D0' },
+                { x: this.x, y: this.y + 25, label: 'D1' },
+                { x: this.x, y: this.y + 40, label: 'D2' },
+                { x: this.x, y: this.y + 55, label: 'D3' },
+                { x: this.x + this.width, y: this.y + this.height - 10, label: 'RST' }
+            ];
+            return;
+        }
+        
+        if (this.type !== 'INPUT' && this.type !== 'CLOCK') {
+            this.inputNodes.push(
+                { x: this.x, y: this.y + 10, label: 'A' },
+                { x: this.x, y: this.y + 30, label: 'B' }
+            );
+        }
+        
+        if (this.type !== 'LED' && this.type !== 'SCREEN') {
+            this.outputNodes.push(
+                { x: this.x + this.width, y: this.y + 20, label: 'OUT' }
+            );
+        }
+    }
+
+    draw() {
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        
+        switch(this.type) {
+            case 'AND':
+                this.drawANDGate();
+                break;
+            case 'OR':
+                this.drawORGate();
+                break;
+            case 'NOT':
+                this.drawNOTGate();
+                break;
+            case 'XOR':
+                this.drawXORGate();
+                break;
+            case 'NAND':
+                this.drawNAND();
+                break;
+            case 'NOR':
+                this.drawNOR();
+                break;
+            case 'XNOR':
+                this.drawXNOR();
+                break;
+            case 'INPUT':
+                this.drawInput();
+                break;
+            case 'LED':
+                this.drawLED();
+                break;
+            case 'SCREEN':
+                this.drawSegDisplay();
+                break;
+            case 'CLOCK':
+                this.drawClock();
+                break;
+            case 'DLATCH':
+                this.drawDLatch();
+                break;
+            case 'JKFF':
+                this.drawJKFF();
+                break;
+            case 'COUNTER':
+                this.drawCounter();
+                break;
+            case 'DECODER':
+                this.drawDecoder();
+                break;
+            case 'MUX':
+                this.drawMUX();
+                break;
+            case 'MULTIPLEX':
+            case 'DEMUX':
+            case 'FULL_ADDER':
+            case 'SHIFT_REG':
+            case 'RAM':
+            case 'ALU':
+            case 'BCD':
+            case 'PROBE':
+            case 'PULSE':
+            case 'ANALYZER':
+                ctx.strokeRect(this.x, this.y, this.width, this.height);
+                ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(this.type, this.x + this.width / 2, this.y + this.height / 2);
+                break;
+        }
+        
+        // Draw IO nodes
+        this.drawNodes();
+    }
+
+    drawDLatch() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('D', this.x + 30, this.y + 25);
+    }
+
+    drawJKFF() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('JK', this.x + 30, this.y + 25);
+    }
+
+    drawCounter() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        // Draw counter value
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('CNT: ' + this.count, this.x + 30, this.y + 25);
+    }
+
+    drawDecoder() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('DEC', this.x + 30, this.y + 25);
+    }
+
+    drawMUX() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('MUX', this.x + 30, this.y + 25);
+    }
+
+    drawSegDisplay() {
+        // Draw display housing
+        ctx.strokeStyle = '#fff';
+        ctx.fillStyle = '#222';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        
+        // Get data wires and reset wire
+        const dataWires = wires.filter(w => w.to === this && w.end.label.startsWith('D'));
+        const resetWire = wires.find(w => w.to === this && w.end.label === 'RST');
+
+        // Handle reset
+        if (resetWire && resetWire.from.value) {
+            this.displayValue = 0;
+        } else if (dataWires.length > 0) {
+            const sourceComponent = dataWires[0].from;
+            if (sourceComponent.type === 'COUNTER') {
+                this.displayValue = sourceComponent.count || 0;
+            } else {
+                // Convert binary input to decimal
+                const inputs = dataWires
+                    .map(w => w.from.value ? 1 : 0)
+                    .reverse();
+                this.displayValue = parseInt(inputs.join(''), 2);
+            }
+        }
+
+        // Draw number
+        ctx.fillStyle = '#0f0';
+        ctx.font = '20px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(
+            this.displayValue.toString(), 
+            this.x + this.width / 2, 
+            this.y + this.height / 2
+        );
+
+        // Draw reset indicator
+        if (resetWire && resetWire.from.value) {
+            ctx.fillStyle = '#f00';
+            ctx.beginPath();
+            ctx.arc(this.x + this.width - 10, this.y + this.height - 10, 3, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    drawANDGate() {
+        ctx.strokeStyle = '#fff';
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + 40, this.y);
+        ctx.arc(this.x + 40, this.y + 20, 20, -Math.PI/2, Math.PI/2);
+        ctx.lineTo(this.x, this.y + 40);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawORGate() {
+        ctx.strokeStyle = '#fff';
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.arc(this.x - 10, this.y + 20, 30, -Math.PI/2, Math.PI/2);
+        ctx.arc(this.x + 40, this.y + 20, 20, -Math.PI/2, Math.PI/2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawNOTGate() {
+        ctx.strokeStyle = '#fff';
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + 40, this.y + 20);
+        ctx.lineTo(this.x, this.y + 40);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        
+        // Draw bubble
+        ctx.beginPath();
+        ctx.arc(this.x + 45, this.y + 20, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawXORGate() {
+        ctx.strokeStyle = '#fff';
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.beginPath();
+        ctx.arc(this.x - 20, this.y + 20, 30, -Math.PI/2, Math.PI/2);
+        ctx.arc(this.x - 10, this.y + 20, 30, -Math.PI/2, Math.PI/2);
+        ctx.arc(this.x + 40, this.y + 20, 20, -Math.PI/2, Math.PI/2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawNAND() {
+        this.drawANDGate();
+        // Add NOT bubble
+        ctx.beginPath();
+        ctx.arc(this.x + 60, this.y + 20, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawNOR() {
+        this.drawORGate();
+        // Add NOT bubble
+        ctx.beginPath();
+        ctx.arc(this.x + 60, this.y + 20, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawXNOR() {
+        this.drawXORGate();
+        // Add NOT bubble
+        ctx.beginPath();
+        ctx.arc(this.x + 60, this.y + 20, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawInput() {
+        ctx.fillStyle = this.value ? '#0f0' : '#f00';
+        ctx.fillRect(this.x, this.y, 40, 40);
+        ctx.strokeRect(this.x, this.y, 40, 40);
+    }
+
+    drawLED() {
+        ctx.beginPath();
+        ctx.arc(this.x + 20, this.y + 20, 15, 0, Math.PI * 2);
+        ctx.fillStyle = this.value ? '#f00' : '#400';
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    drawClock() {
+        ctx.strokeRect(this.x, this.y, 40, 40);
+        ctx.fillStyle = this.value ? '#0f0' : '#f00';
+        ctx.fillRect(this.x + 5, this.y + 5, 30, 30);
+        
+        // Draw clock symbol
+        ctx.beginPath();
+        ctx.arc(this.x + 20, this.y + 20, 10, 0, Math.PI * 2);
+        ctx.moveTo(this.x + 20, this.y + 20);
+        ctx.lineTo(this.x + 20, this.y + 15);
+        ctx.moveTo(this.x + 20, this.y + 20);
+        ctx.lineTo(this.x + 25, this.y + 20);
+        ctx.strokeStyle = '#000';
+        ctx.stroke();
+    }
+
+    drawDLatch() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('D', this.x + 30, this.y + 25);
+    }
+
+    drawJKFF() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('JK', this.x + 30, this.y + 25);
+    }
+
+    drawCounter() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        
+        // Draw counter value
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('CNT: ' + this.count, this.x + 30, this.y + 25);
+    }
+
+    drawDecoder() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('DEC', this.x + 30, this.y + 25);
+    }
+
+    drawMUX() {
+        ctx.strokeRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = this.value ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('MUX', this.x + 30, this.y + 25);
+    }
+
+    drawNodes() {
+        const isMobile = window.matchMedia('(pointer: coarse)').matches;
+        const baseNodeRadius = isMobile ? 6 : 4;
+        
+        // Draw input nodes
+        this.inputNodes.forEach((node, index) => {
+            ctx.fillStyle = this.inputs[index]?.value ? '#0f0' : '#fff';
+            ctx.beginPath();
+            
+            // Check if this node is being hovered and should pulse
+            const isPulsing = hoveredNode && 
+                hoveredNode.node === node && 
+                wireMode && 
+                wireStartNode;
+            
+            if (isPulsing) {
+                // Calculate larger pulse size based on time
+                const pulseSize = baseNodeRadius + (Math.sin(Date.now() / 100) + 1) * baseNodeRadius * 2; // Doubled the multiplier
+                ctx.arc(node.x, node.y, pulseSize, 0, Math.PI * 2);
+            } else {
+                ctx.arc(node.x, node.y, baseNodeRadius, 0, Math.PI * 2);
+            }
+            
+            ctx.fill();
+            
+            // Adjust label position based on device type
+            const labelOffset = isMobile ? 15 : 8;
+            ctx.fillStyle = '#fff';
+            ctx.font = isMobile ? '14px Arial' : '12px Arial';
+            ctx.textAlign = 'right';
+            ctx.fillText(node.label, node.x - labelOffset, node.y + 4);
+        });
+        
+        // Draw output nodes with same adjustments
+        this.outputNodes.forEach(node => {
+            ctx.fillStyle = this.value ? '#0f0' : '#fff';
+            ctx.beginPath();
+            
+            // Check if this node is being hovered and should pulse
+            const isPulsing = hoveredNode && 
+                hoveredNode.node === node && 
+                wireMode && 
+                wireStartNode;
+            
+            if (isPulsing) {
+                // Calculate larger pulse size based on time
+                const pulseSize = baseNodeRadius + (Math.sin(Date.now() / 100) + 1) * baseNodeRadius * 2; // Doubled the multiplier
+                ctx.arc(node.x, node.y, pulseSize, 0, Math.PI * 2);
+            } else {
+                ctx.arc(node.x, node.y, baseNodeRadius, 0, Math.PI * 2);
+            }
+            
+            ctx.fill();
+            
+            // Adjust label position based on device type
+            const labelOffset = isMobile ? 15 : 8;
+            ctx.fillStyle = '#fff';
+            ctx.font = isMobile ? '14px Arial' : '12px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(node.label, node.x + labelOffset, node.y + 4);
+        });
+    }
+}
+
+// Circuit simulation
+let components = [];
+let wires = [];
+let selectedComponent = null;
+let dragging = false;
+let wireStart = null;
+let draggedComponent = null;
+let dragOffset = { x: 0, y: 0 };
+let wireMode = false;
+let deleteMode = false; // New delete mode flag
+let wireStartNode = null;
+let wireStartComponent = null;
+let hoveredNode = null;
+let lastClickedWire = null; // New variable for last clicked wire
+let lastClickTime = 0; // New variable for last click time
+
+function getNodeDetectionRadius() {
+    return window.matchMedia('(pointer: coarse)').matches ? 20 : 8;
+}
+
+function getWireSelectionThreshold() {
+    return window.matchMedia('(pointer: coarse)').matches ? 15 : 5;
+}
+
+// Function to find a wire at a specific point
+function findWireAtPoint(x, y) {
+    const threshold = getWireSelectionThreshold();
+    for (let wire of wires) {
+        // Calculate distance from point to line segment
+        const A = {x: wire.start.x, y: wire.start.y};
+        const B = {x: wire.end.x, y: wire.end.y};
+        const P = {x, y};
+        
+        // Calculate the distance from point to line segment
+        const lengthSquared = Math.pow(B.x - A.x, 2) + Math.pow(B.y - A.y, 2);
+        if (lengthSquared === 0) return null;
+        
+        let t = ((P.x - A.x) * (B.x - A.x) + (P.y - A.y) * (B.y - A.y)) / lengthSquared;
+        t = Math.max(0, Math.min(1, t));
+        
+        const closest = {
+            x: A.x + t * (B.x - A.x),
+            y: A.y + t * (B.y - A.y)
+        };
+        
+        const distance = Math.sqrt(Math.pow(P.x - closest.x, 2) + Math.pow(P.y - closest.y, 2));
+        
+        if (distance < threshold) { // Use dynamic threshold
+            return wire;
+        }
+    }
+    return null;
+}
+
+// Mouse event handlers for dragging and deleting
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    if (wireMode && hoveredNode) {
+        if (!wireStartNode) {
+            wireStartNode = hoveredNode.node;
+            wireStartComponent = hoveredNode.component;
+        } else {
+            createWire(wireStartNode, wireStartComponent, hoveredNode.node, hoveredNode.component);
+            wireStartNode = null;
+            wireStartComponent = null;
+        }
+        return;
+    }
+    
+    const clickedWire = findWireAtPoint(x, y);
+    const currentTime = new Date().getTime();
+    
+    if (clickedWire) {
+        if (clickedWire === lastClickedWire && currentTime - lastClickTime < 300) {
+            // Double click detected - remove the wire
+            wires = wires.filter(w => w !== clickedWire);
+            lastClickedWire = null;
+            draw();
+            return;
+        }
+        lastClickedWire = clickedWire;
+        lastClickTime = currentTime;
+    } else {
+        lastClickedWire = null;
+    }
+    
+    if (deleteMode) {
+        components.forEach((component, index) => {
+            if (x >= component.x && x <= component.x + component.width &&
+                y >= component.y && y <= component.y + component.height) {
+                components.splice(index, 1); // Remove the component
+                wires = wires.filter(w => w.from !== component && w.to !== component); // Remove associated wires
+            }
+        });
+        return; // Exit the function after deleting
+    }
+    
+    // Enhanced component dragging logic
+    components.forEach(component => {
+        if (x >= component.x && x <= component.x + component.width &&
+            y >= component.y && y <= component.y + component.height) {
+            draggedComponent = component;
+            dragOffset.x = x - component.x;
+            dragOffset.y = y - component.y;
+        }
+    });
+});
+
+// Add mousemove event handler
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Update hoveredNode for wire mode preview
+    hoveredNode = null;
+    if (wireMode) {
+        let closestDistance = Infinity;
+        components.forEach(component => {
+            const nodes = wireStartNode ? 
+                (wireStartComponent.outputNodes.includes(wireStartNode) ? component.inputNodes : component.outputNodes) :
+                [...component.inputNodes, ...component.outputNodes];
+            
+            nodes.forEach(node => {
+                const dx = x - node.x;
+                const dy = y - node.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                }
+                
+                if (checkNodeProximity(x, y, node)) {
+                    hoveredNode = { node, component };
+                }
+            });
+        });
+        
+        // Trigger vibration based on closest distance
+        if (closestDistance !== Infinity) {
+            const maxDistance = getNodeDetectionRadius() * 2; // Double the node detection radius
+            vibrateBasedOnDistance(closestDistance, maxDistance);
+        }
+    }
+    
+    if (draggedComponent) {
+        // Update component position
+        draggedComponent.x = x - dragOffset.x;
+        draggedComponent.y = y - dragOffset.y;
+        
+        // Constrain to canvas bounds
+        draggedComponent.x = Math.max(0, Math.min(canvas.width - draggedComponent.width, draggedComponent.x));
+        draggedComponent.y = Math.max(0, Math.min(canvas.height - draggedComponent.height, draggedComponent.y));
+        
+        // Update component's nodes
+        draggedComponent.updateNodes();
+        
+        // Update connected wires
+        wires.forEach(wire => {
+            if (wire.from === draggedComponent) {
+                // Find the matching output node and update wire start position
+                draggedComponent.outputNodes.forEach(node => {
+                    if (wire.start === node) {
+                        wire.start.x = node.x;
+                        wire.start.y = node.y;
+                    }
+                });
+            }
+            if (wire.to === draggedComponent) {
+                // Find the matching input node and update wire end position
+                draggedComponent.inputNodes.forEach(node => {
+                    if (wire.end === node) {
+                        wire.end.x = node.x;
+                        wire.end.y = node.y;
+                    }
+                });
+            }
+        });
+        
+        draw();
+    }
+});
+
+// Add mouseup event handler
+canvas.addEventListener('mouseup', () => {
+    draggedComponent = null;
+});
+
+// Touch event handlers
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault(); // Prevent scrolling
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    if (wireMode && hoveredNode) {
+        if (!wireStartNode) {
+            wireStartNode = hoveredNode.node;
+            wireStartComponent = hoveredNode.component;
+        } else {
+            createWire(wireStartNode, wireStartComponent, hoveredNode.node, hoveredNode.component);
+            wireStartNode = null;
+            wireStartComponent = null;
+        }
+        return;
+    }
+    
+    // Handle delete mode
+    if (deleteMode) {
+        components.forEach((component, index) => {
+            if (x >= component.x && x <= component.x + component.width &&
+                y >= component.y && y <= component.y + component.height) {
+                components.splice(index, 1);
+                wires = wires.filter(w => w.from !== component && w.to !== component);
+            }
+        });
+        return;
+    }
+    
+    // Handle wire mode
+    components.forEach(component => {
+        [...component.inputNodes, ...component.outputNodes].forEach(node => {
+            const dx = x - node.x;
+            const dy = y - node.y;
+            if (Math.sqrt(dx * dx + dy * dy) < 20) { // Larger touch target
+                if (!wireStartNode) {
+                    wireStartNode = node;
+                    wireStartComponent = component;
+                } else {
+                    createWire(wireStartNode, wireStartComponent, node, component);
+                    wireStartNode = null;
+                    wireStartComponent = null;
+                }
+            }
+        });
+    });
+    
+    // Handle component dragging and input toggling
+    components.forEach(component => {
+        if (x >= component.x && x <= component.x + component.width &&
+            y >= component.y && y <= component.y + component.height) {
+            if (component.type === 'INPUT') {
+                // Only toggle if it's a short tap (not the start of a drag)
+                setTimeout(() => {
+                    if (!draggedComponent) {
+                        component.value = !component.value;
+                        simulate();
+                    }
+                }, 100);
+            }
+            draggedComponent = component;
+            dragOffset.x = x - component.x;
+            dragOffset.y = y - component.y;
+        }
+    });
+}, { passive: false });
+
+// Update touchmove
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    if (draggedComponent) {
+        // Update component position
+        draggedComponent.x = x - dragOffset.x;
+        draggedComponent.y = y - dragOffset.y;
+        
+        // Constrain to canvas bounds
+        draggedComponent.x = Math.max(0, Math.min(canvas.width - draggedComponent.width, draggedComponent.x));
+        draggedComponent.y = Math.max(0, Math.min(canvas.height - draggedComponent.height, draggedComponent.y));
+        
+        // Update component's nodes
+        draggedComponent.updateNodes();
+        
+        // Update connected wires
+        wires.forEach(wire => {
+            if (wire.from === draggedComponent) {
+                // Find the matching output node and update wire start position
+                draggedComponent.outputNodes.forEach(node => {
+                    if (wire.start === node) {
+                        wire.start.x = node.x;
+                        wire.start.y = node.y;
+                    }
+                });
+            }
+            if (wire.to === draggedComponent) {
+                // Find the matching input node and update wire end position
+                draggedComponent.inputNodes.forEach(node => {
+                    if (wire.end === node) {
+                        wire.end.x = node.x;
+                        wire.end.y = node.y;
+                    }
+                });
+            }
+        });
+        
+        draw();
+    }
+    
+    // Update hoveredNode for wire mode preview and handle vibration
+    hoveredNode = null;
+    if (wireMode) {
+        let closestDistance = Infinity;
+        components.forEach(component => {
+            const nodes = wireStartNode ? 
+                (wireStartComponent.outputNodes.includes(wireStartNode) ? component.inputNodes : component.outputNodes) :
+                [...component.inputNodes, ...component.outputNodes];
+            
+            nodes.forEach(node => {
+                const dx = x - node.x;
+                const dy = y - node.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                }
+                
+                if (checkNodeProximity(x, y, node)) {
+                    hoveredNode = { node, component };
+                }
+            });
+            
+            // Trigger vibration based on closest distance
+            if (closestDistance !== Infinity) {
+                const maxDistance = getNodeDetectionRadius() * 2; // Double the node detection radius
+                vibrateBasedOnDistance(closestDistance, maxDistance);
+            }
+        });
+    }
+    
+    draw({
+        clientX: touch.clientX,
+        clientY: touch.clientY
+    });
+}, { passive: false });
+
+// Update touchend to stop vibrations
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    if (navigator.vibrate) {
+        navigator.vibrate(0); // Stop any ongoing vibration
+    }
+    
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.changedTouches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    if (!draggedComponent && !wireMode) {
+        components.forEach(component => {
+            if (component.type === 'INPUT' &&
+                x >= component.x && x <= component.x + component.width &&
+                y >= component.y && y <= component.y + component.height) {
+                component.value = !component.value;
+                simulate();
+            }
+        });
+    }
+    draggedComponent = null;
+    hoveredNode = null;
+    draw();
+}, { passive: false });
+
+// Click handler for input toggles
+canvas.addEventListener('click', (e) => {
+    if (!draggedComponent) { // Only toggle if we weren't dragging
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        components.forEach(component => {
+            if (component.type === 'INPUT' &&
+                x >= component.x && x <= component.x + component.width &&
+                y >= component.y && y <= component.y + component.height) {
+                component.value = !component.value;
+                simulate();
+            }
+        });
+    }
+});
+
+// Add component buttons functionality
+document.querySelectorAll('.component-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const type = btn.dataset.type;
+        // Calculate center position
+        const centerX = Math.floor((canvas.width - 60) / 2); // 60 is default component width
+        const centerY = Math.floor((canvas.height - 40) / 2); // 40 is default component height
+        components.push(new Component(type, centerX, centerY));
+        draw();
+    });
+});
+
+// Keyboard shortcut for wire mode
+document.addEventListener('keydown', (e) => {
+    if (e.key.toLowerCase() === 'w') {
+        wireMode = !wireMode;
+        document.getElementById('wireMode').classList.toggle('active');
+    }
+    if (e.key.toLowerCase() === 'd') {
+        deleteMode = !deleteMode;
+        document.getElementById('deleteMode').classList.toggle('active');
+    }
+});
+
+// Wire mode button handler
+document.getElementById('wireMode').addEventListener('click', () => {
+    wireMode = !wireMode;
+    document.getElementById('wireMode').classList.toggle('active');
+});
+
+// Delete mode button handler
+document.getElementById('deleteMode').addEventListener('click', () => {
+    deleteMode = !deleteMode;
+    document.getElementById('deleteMode').classList.toggle('active');
+});
+
+function createWire(startNode, startComponent, endNode, endComponent) {
+    if (!startNode || !endNode) return;
+    
+    // Create wire only if connecting output to input
+    const startIsOutput = startComponent.outputNodes.includes(startNode);
+    const endIsInput = endComponent.inputNodes.includes(endNode);
+    
+    if (startIsOutput && endIsInput && startComponent !== endComponent) {
+        // Remove any existing wires connected to this input
+        wires = wires.filter(w => !(w.to === endComponent && w.end === endNode));
+        
+        // Add the new wire
+        wires.push({
+            start: startNode,
+            end: endNode,
+            from: startComponent,
+            to: endComponent
+        });
+        
+        simulate();
+    }
+}
+
+function simulate() {
+    // Reset all non-input component values
+    components.forEach(component => {
+        if (component.type !== 'INPUT' && component.type !== 'CLOCK') {
+            component.value = false;
+        }
+    });
+    
+    // Special handling for clock components
+    components.forEach(component => {
+        if (component.type === 'CLOCK') {
+            component.value = !component.value;
+        }
+    });
+
+    // Propagate values through wires and update components
+    wires.forEach(wire => {
+        const fromValue = wire.from.value;
+        const toComponent = wire.to;
+        const inputIndex = toComponent.inputNodes.indexOf(wire.end);
+        
+        if (inputIndex !== -1) {
+            toComponent.inputs[inputIndex] = wire.from;
+        }
+    });
+
+    // Update component outputs based on their logic
+    components.forEach(component => {
+        switch(component.type) {
+            case 'AND':
+                component.value = component.inputs.every(input => input?.value);
+                break;
+            case 'OR':
+                component.value = component.inputs.some(input => input?.value);
+                break;
+            case 'NOT':
+                component.value = !component.inputs[0]?.value;
+                break;
+            case 'XOR':
+                component.value = component.inputs.filter(input => input?.value).length % 2 === 1;
+                break;
+            case 'NAND':
+                component.value = !component.inputs.every(input => input?.value);
+                break;
+            case 'NOR':
+                component.value = !component.inputs.some(input => input?.value);
+                break;
+            case 'XNOR':
+                component.value = component.inputs.filter(input => input?.value).length % 2 === 0;
+                break;
+            case 'LED':
+                component.value = component.inputs[0]?.value || false;
+                break;
+            case 'COUNTER':
+                // Get clock and reset inputs
+                const clockInput = component.inputs[0];
+                const resetInput = component.inputs[1];
+                
+                // Handle reset
+                if (resetInput?.value) {
+                    component.count = 0;
+                    component.value = false;
+                }
+                // Handle clock edge
+                else if (clockInput?.value && !component.lastClockState) {
+                    component.count = (component.count + 1) % 16; // 4-bit counter (0-15)
+                    component.value = true;
+                }
+                
+                // Store clock state for edge detection
+                component.lastClockState = clockInput?.value;
+                break;
+            case 'MULTIPLEX':
+                const sel = component.inputs[0]?.value ? 2 : 0;
+                sel += component.inputs[1]?.value ? 1 : 0;
+                component.value = component.inputs[2 + sel]?.value || false;
+                break;
+            case 'DEMUX':
+                const demuxSel = component.inputs[0]?.value ? 2 : 0;
+                demuxSel += component.inputs[1]?.value ? 1 : 0;
+                component.value = component.inputs[2] && (demuxSel === component.outputIndex);
+                break;
+            case 'FULL_ADDER':
+                const a = component.inputs[0]?.value || false;
+                const b = component.inputs[1]?.value || false;
+                const cin = component.inputs[2]?.value || false;
+                const sum = (a ^ b) ^ cin;
+                const cout = (a && b) || (cin && (a ^ b));
+                component.value = sum;
+                component.carryOut = cout;
+                break;
+            case 'SHIFT_REG':
+                if (component.inputs[0]?.value && !component.lastClock) {
+                    component.bits = (component.bits || 0) << 1;
+                    if (component.inputs[1]?.value) component.bits |= 1;
+                    component.bits &= 0xFF; // Keep to 8 bits
+                    component.value = (component.bits & 0x80) !== 0;
+                }
+                component.lastClock = component.inputs[0]?.value;
+                break;
+        }
+    });
+
+    draw();
+}
+
+function draw(mouseEvent) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw all components
+    components.forEach(component => component.draw());
+    
+    // Draw all wires
+    wires.forEach(wire => {
+        ctx.beginPath();
+        ctx.strokeStyle = wire.from.value ? '#0f0' : '#fff';
+        ctx.lineWidth = 2;
+        ctx.moveTo(wire.start.x, wire.start.y);
+        ctx.lineTo(wire.end.x, wire.end.y);
+        ctx.stroke();
+    });
+    
+    // Draw wire preview when in wire mode
+    if (wireMode && wireStartNode && mouseEvent) {
+        const rect = canvas.getBoundingClientRect();
+        const x = ('touches' in mouseEvent) ? 
+            mouseEvent.touches[0].clientX - rect.left : 
+            mouseEvent.clientX - rect.left;
+        const y = ('touches' in mouseEvent) ? 
+            mouseEvent.touches[0].clientY - rect.top : 
+            mouseEvent.clientY - rect.top;
+        
+        ctx.beginPath();
+        ctx.strokeStyle = hoveredNode ? '#0f0' : '#666';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.moveTo(wireStartNode.x, wireStartNode.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    
+    // Draw hover effects for nodes
+    if (wireMode && hoveredNode) {
+        const radius = window.matchMedia('(pointer: coarse)').matches ? 12 : 6;
+        ctx.beginPath();
+        ctx.strokeStyle = '#0f0';
+        ctx.lineWidth = 2;
+        ctx.arc(hoveredNode.node.x, hoveredNode.node.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+}
+
+// Initial draw
+draw();
+
+// Start simulation loop
+setInterval(simulate, 50);
+
+// Initialize tab functionality
+function initializeTabs() {
+    // Create tabs container
+    const tabsContainer = document.createElement('div');
+    tabsContainer.className = 'category-tabs';
+    
+    // Get all categories
+    const categories = document.querySelectorAll('.category');
+    
+    // Create tabs for each category
+    categories.forEach((category, index) => {
+        const header = category.querySelector('.category-header');
+        const tab = document.createElement('button');
+        tab.className = 'category-tab';
+        tab.textContent = header.textContent;
+        tab.addEventListener('click', () => {
+            // Remove active class from all tabs and categories
+            document.querySelectorAll('.category-tab').forEach(t => t.classList.remove('active'));
+            categories.forEach(c => c.classList.remove('active'));
+            
+            // Add active class to clicked tab and corresponding category
+            tab.classList.add('active');
+            category.classList.add('active');
+        });
+        
+        // Make first tab active by default
+        if (index === 0) {
+            tab.classList.add('active');
+            category.classList.add('active');
+        }
+        
+        tabsContainer.appendChild(tab);
+    });
+    
+    // Remove old headers
+    document.querySelectorAll('.category-header').forEach(header => header.remove());
+    
+    // Insert tabs at the beginning of toolbox
+    const toolbox = document.querySelector('.toolbox');
+    toolbox.insertBefore(tabsContainer, toolbox.firstChild);
+}
+
+// Mobile mode toggle functionality
+function initializeMobileToggle() {
+    const mobileToggle = document.querySelector('.mobile-toggle');
+    const body = document.body;
+    
+    // Check if mobile mode was previously enabled
+    const mobileEnabled = localStorage.getItem('mobileMode') === 'true';
+    if (mobileEnabled) {
+        body.classList.add('mobile-mode');
+        mobileToggle.classList.add('active');
+    }
+    
+    mobileToggle.addEventListener('click', () => {
+        body.classList.toggle('mobile-mode');
+        mobileToggle.classList.toggle('active');
+        
+        // Store preference
+        localStorage.setItem('mobileMode', body.classList.contains('mobile-mode'));
+        
+        // Redraw canvas to update node sizes
+        draw();
+    });
+}
+
+// Initialize mobile toggle
+initializeMobileToggle();
+
+// Call initializeTabs after the page loads
+initializeTabs();
+
+// Remove the old category header click handlers since we don't need them anymore
+document.querySelectorAll('.category-header').forEach(header => {
+    header.replaceWith(header.cloneNode(true));
+});
+</script>
+</body></html>
